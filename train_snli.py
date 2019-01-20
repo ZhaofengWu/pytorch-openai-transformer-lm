@@ -223,7 +223,7 @@ if __name__ == '__main__':
     n_batch_train = args.n_batch * max(n_gpu, 1)
     n_updates_total = (n_train // n_batch_train) * args.n_iter
 
-    dh_model = DoubleHeadModel(args, clf_token, ('classification', 2), vocab, n_ctx)
+    dh_model = DoubleHeadModel(args, clf_token, ('classification', 3), vocab, n_ctx)
 
     criterion = nn.CrossEntropyLoss(reduce=False)
     model_opt = OpenAIAdam(dh_model.parameters(),
