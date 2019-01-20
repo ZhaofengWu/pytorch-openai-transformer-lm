@@ -6,7 +6,7 @@ import pandas as pd
 from sklearn.metrics import accuracy_score
 
 from datasets import _rocstories
-from datasets import _snli
+from datasets import _snli, _mednli
 
 def rocstories(data_dir, pred_path, log_path):
     preds = pd.read_csv(pred_path, delimiter='\t')['prediction'].values.tolist()
