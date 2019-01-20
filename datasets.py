@@ -65,7 +65,10 @@ def _snli(path):
             if len(line) == 0:
                 continue
             fields = line.split('\t')
-            label = SNLI_LABELS[int(fields[0])]
+            label_txt = fields[0]
+            if label_txt == '-':
+                continue
+            label = SNLI_LABELS[label_txt]
             s1 = fields[5]
             s2 = fields[6]
             sents1.append(s1)
