@@ -9,7 +9,8 @@ from sklearn.metrics import accuracy_score
 from sklearn.utils import shuffle
 
 from analysis import snli as snli_analysis
-from datasets import snli
+from analysis import mednli as mednli_analysis
+from datasets import snli, mednli
 from model_pytorch import DoubleHeadModel, load_openai_pretrained_model
 from opt import OpenAIAdam
 from text_utils import TextEncoder
@@ -17,7 +18,7 @@ from utils import (encode_dataset, iter_data,
                    ResultLogger, make_path)
 from loss import ClassificationLossCompute
 
-def transform_snli(X1, X2):
+def transform_nli(X1, X2):
     n_batch = len(X1)
     xmb = np.zeros((n_batch, n_ctx, 2), dtype=np.int32)
     mmb = np.zeros((n_batch, n_ctx), dtype=np.float32)
@@ -121,14 +122,27 @@ argmax = lambda x: np.argmax(x, 1)
 
 pred_fns = {
     'snli': argmax,
+    'mednli': argmax,
 }
 
 filenames = {
     'snli': 'snli.tsv',
+    'mednli': 'mednli.tsv',
 }
 
 label_decoders = {
     'snli': None,
+    'mednli': None,
+}
+
+dataset_reader = {
+    'snli': snli,
+    'mednli': mednli
+}
+
+num_classes = {
+    'snli': 3,
+    'mednli': 3
 }
 
 if __name__ == '__main__':
@@ -199,7 +213,7 @@ if __name__ == '__main__':
     print("Encoding dataset...")
     ((trX1, trX2, trY),
      (vaX1, vaX2, vaY),
-     (teX1, teX2)) = encode_dataset(*snli(data_dir),
+     (teX1, teX2)) = encode_dataset(*dataset_reader[dataset](data_dir),
                                      encoder=text_encoder)
     encoder['_start_'] = len(encoder)
     encoder['_delimiter_'] = len(encoder)
@@ -213,17 +227,17 @@ if __name__ == '__main__':
         + [len(x1[:max_len]) + len(x2[:max_len]) for x1, x2 in zip(teX1, teX2)]
         ) + 3, n_ctx)
     vocab = n_vocab + n_special + n_ctx
-    trX, trM = transform_snli(trX1, trX2)
-    vaX, vaM = transform_snli(vaX1, vaX2)
+    trX, trM = transform_nli(trX1, trX2)
+    vaX, vaM = transform_nli(vaX1, vaX2)
     if submit:
-        teX, teM = transform_snli(teX1, teX2)
+        teX, teM = transform_nli(teX1, teX2)
 
     n_train = len(trY)
     n_valid = len(vaY)
     n_batch_train = args.n_batch * max(n_gpu, 1)
     n_updates_total = (n_train // n_batch_train) * args.n_iter
 
-    dh_model = DoubleHeadModel(args, clf_token, ('classification', 3), vocab, n_ctx)
+    dh_model = DoubleHeadModel(args, clf_token, ('classification', num_classes[dataset]), vocab, n_ctx)
 
     criterion = nn.CrossEntropyLoss(reduce=False)
     model_opt = OpenAIAdam(dh_model.parameters(),
@@ -264,5 +278,11 @@ if __name__ == '__main__':
         dh_model.load_state_dict(torch.load(path))
         predict(dataset, args.submission_dir)
         if args.analysis:
-            snli_analysis(data_dir, os.path.join(args.submission_dir, 'snli.tsv'),
-                          os.path.join(log_dir, 'snli.jsonl'))
+            if dataset == 'snli':
+                snli_analysis(data_dir, os.path.join(args.submission_dir, 'snli.tsv'),
+                            os.path.join(log_dir, 'snli.jsonl'))
+            elif dataset == 'mednli':
+                mednli_analysis(data_dir, os.path.join(args.submission_dir, 'mednli.tsv'),
+                                os.path.join(log_dir, 'mednli.jsonl'))
+            else:
+                assert False

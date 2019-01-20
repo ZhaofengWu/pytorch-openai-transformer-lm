@@ -27,3 +27,13 @@ def snli(data_dir, pred_path, log_path):
     valid_accuracy = logs[best_validation_index]['va_acc']
     print('SNLI Valid Accuracy: %.2f'%(valid_accuracy))
     print('SNLI Test Accuracy:  %.2f'%(test_accuracy))
+
+def mednli(data_dir, pred_path, log_path):
+    preds = pd.read_csv(pred_path, delimiter='\t')['prediction'].values.tolist()
+    _, _, _, labels = _snli(os.path.join(data_dir, 'RQE_Test_302_pairs_AMIA2016.xml'))
+    test_accuracy = accuracy_score(labels, preds)*100.
+    logs = [json.loads(line) for line in open(log_path)][1:]
+    best_validation_index = np.argmax([log['va_acc'] for log in logs])
+    valid_accuracy = logs[best_validation_index]['va_acc']
+    print('MedNLI Valid Accuracy: %.2f'%(valid_accuracy))
+    print('MedNLI Test Accuracy:  %.2f'%(test_accuracy))
