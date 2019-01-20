@@ -15,24 +15,21 @@ from opt import OpenAIAdam
 from text_utils import TextEncoder
 from utils import (encode_dataset, iter_data,
                    ResultLogger, make_path)
-from loss import MultipleChoiceLossCompute
+from loss import ClassificationLossCompute
 
 def transform_snli(X1, X2):
     n_batch = len(X1)
-    xmb = np.zeros((n_batch, 2, n_ctx, 2), dtype=np.int32)
-    mmb = np.zeros((n_batch, 2, n_ctx), dtype=np.float32)
+    xmb = np.zeros((n_batch, n_ctx, 2), dtype=np.int32)
+    mmb = np.zeros((n_batch, n_ctx), dtype=np.float32)
     start = encoder['_start_']
+    delimiter = encoder['_delimiter_']
     for i, (x1, x2), in enumerate(zip(X1, X2)):
-        x1 = [start] + x1[:max_len] + [clf_token]
-        x2 = [start] + x2[:max_len] + [clf_token]
-        l1 = len(x1)
-        l2 = len(x2)
-        xmb[i, 0, :l1, 0] = x1
-        xmb[i, 1, :l2, 0] = x2
-        mmb[i, 0, :l1] = 1
-        mmb[i, 1, :l2] = 1
+        x = [start] + x1[:max_len] + [delimiter] + x2[:max_len] + [clf_token]
+        l = len(x)
+        xmb[i, :l, 0] = x
+        mmb[i, :l] = 1
     # Position information that is added to the input embeddings in the TransformerModel
-    xmb[:, :, :, 1] = np.arange(n_vocab + n_special, n_vocab + n_special + n_ctx)
+    xmb[:, :, 1] = np.arange(n_vocab + n_special, n_vocab + n_special + n_ctx)
     return xmb, mmb
 
 
@@ -211,9 +208,9 @@ if __name__ == '__main__':
     n_special = 3
     max_len = n_ctx // 2 - 2
     n_ctx = min(max(
-        [max(len(x1[:max_len]), len(x2[:max_len])) for x1, x2 in zip(trX1, trX2)]
-        + [max(len(x1[:max_len]), len(x2[:max_len])) for x1, x2 in zip(vaX1, vaX2)]
-        + [max(len(x1[:max_len]), len(x2[:max_len])) for x1, x2 in zip(teX1, teX2)]
+        [len(x1[:max_len]) + len(x2[:max_len]) for x1, x2 in zip(trX1, trX2)]
+        + [len(x1[:max_len]) + len(x2[:max_len]) for x1, x2 in zip(vaX1, vaX2)]
+        + [len(x1[:max_len]) + len(x2[:max_len]) for x1, x2 in zip(teX1, teX2)]
         ) + 3, n_ctx)
     vocab = n_vocab + n_special + n_ctx
     trX, trM = transform_snli(trX1, trX2)
@@ -226,7 +223,7 @@ if __name__ == '__main__':
     n_batch_train = args.n_batch * max(n_gpu, 1)
     n_updates_total = (n_train // n_batch_train) * args.n_iter
 
-    dh_model = DoubleHeadModel(args, clf_token, 'multiple_choice', vocab, n_ctx)
+    dh_model = DoubleHeadModel(args, clf_token, ('classification', 2), vocab, n_ctx)
 
     criterion = nn.CrossEntropyLoss(reduce=False)
     model_opt = OpenAIAdam(dh_model.parameters(),
@@ -240,7 +237,7 @@ if __name__ == '__main__':
                            l2=args.l2,
                            vector_l2=args.vector_l2,
                            max_grad_norm=args.max_grad_norm)
-    compute_loss_fct = MultipleChoiceLossCompute(criterion,
+    compute_loss_fct = ClassificationLossCompute(criterion,
                                                  criterion,
                                                  args.lm_coef,
                                                  model_opt)
