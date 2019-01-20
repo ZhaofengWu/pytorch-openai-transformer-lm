@@ -106,3 +106,38 @@ def mednli(data_dir):
     train_ys = np.asarray(train_ys, dtype=np.int32)
     dev_ys = np.asarray(dev_ys, dtype=np.int32)
     return (train_sents1, train_sents2, train_ys), (dev_sents1, dev_sents2, dev_ys), (test_sents1, test_sents2)
+
+def _rqe(path):
+    tree = ET.parse(path)
+    root = tree.getroot()
+    sents1 = []
+    sents2 = []
+    values = []
+    for pair in root.findall('pair'):
+        chq = pair.find('chq').text.strip()
+        faq = pair.find('faq').text.strip()
+        value = pair.get('value') == 'true'
+        if len(chq) == 0 or len(faq) == 0:
+            continue
+        sents1.append(chq)
+        sents2.append(faq)
+        values.append(int(value))
+
+    return sents1, sents2, values
+
+def rqe(data_dir):
+    train_dev_sents1, train_dev_sents2, train_dev_ys = _rqe(os.path.join(data_dir, 'RQE_Train_8588_AMIA2016.xml'))
+    test_sents1, test_sents2, _ = _rqe(os.path.join(data_dir, 'RQE_Test_302_pairs_AMIA2016.xml'))
+
+    assert len(train_dev_sents1) == len(train_dev_sents2) == len(train_dev_ys)
+    split = int(len(train_dev_sents1) * 8 / 9)
+    train_sents1 = train_dev_sents1[:split]
+    dev_sents1 = train_dev_sents1[split:]
+    train_sents2 = train_dev_sents2[:split]
+    dev_sents2 = train_dev_sents2[split:]
+    train_ys = train_dev_ys[:split]
+    dev_ys = train_dev_ys[split:]
+
+    train_ys = np.asarray(train_ys, dtype=np.int32)
+    dev_ys = np.asarray(dev_ys, dtype=np.int32)
+    return (train_sents1, train_sents2, train_ys), (dev_sents1, dev_sents2, dev_ys), (test_sents1, test_sents2)
