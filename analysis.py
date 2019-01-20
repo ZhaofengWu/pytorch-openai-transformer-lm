@@ -30,7 +30,7 @@ def snli(data_dir, pred_path, log_path):
 
 def mednli(data_dir, pred_path, log_path):
     preds = pd.read_csv(pred_path, delimiter='\t')['prediction'].values.tolist()
-    _, _, _, labels = _snli(os.path.join(data_dir, 'mli_test_v1.jsonl'))
+    _, _, _, labels = _mednli(os.path.join(data_dir, 'mli_test_v1.jsonl'))
     test_accuracy = accuracy_score(labels, preds)*100.
     logs = [json.loads(line) for line in open(log_path)][1:]
     best_validation_index = np.argmax([log['va_acc'] for log in logs])
